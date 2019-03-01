@@ -1,0 +1,69 @@
+var instagramAccounts = [ 'iamkudla', 'kiehlsua', 'garnier_ua' ];
+var sheetNames = [ 'Data' ];
+var lastPosts = 12;
+
+
+function insertFollowerCount(index) 
+{
+  for(var index = 0; index < instagramAccounts.length;index++)
+  {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(this.sheetNames);
+    accountdata = getInstagramData(this.instagramAccounts[index]);
+    sheet.appendRow([Utilities.formatDate(new Date(), 'GMT+02:00', 'yyyy-MM-dd  hh-mm'), accountdata.followerCount, accountdata.followCount, accountdata.mediaCount,accountdata.totalLikes, accountdata.totalComments, accountdata.EngagementRatio,setNumberFormat('0.00%'),accountdata.Accountname]);
+  };
+};
+
+
+
+function getInstagramData(username)
+{
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(this.sheetNames);
+  
+  accountData = getInstagramData(this.instagramAccounts[username]);
+  
+  var r = new RegExp('<script type="text\/javascript">' + 
+                   '([^{]+?({.*profile_pic_url.*})[^}]+?)' +
+                   '<\/script>');
+  var instagramUrl = 'https://www.instagram.com/' + username, totalComments = 0, totalLikes = 0;
+  var source = UrlFetchApp.fetch(instagramUrl,{muteHttpExceptions: true}); 
+  if (source.getResponseCode() === 200) 
+  {
+    var jsonStr = source.match(r)[2];
+    var jsonData = JSON.parse(jsonStr);
+    console.log('data', jsonData);
+    var oldVariantOfData = jsonData['entry_data']['ProfilePage'][0];
+    console.log('oldVariantOfData', oldVariantOfData);
+    for(var i = 0; i < lastPosts; i++) 
+    {
+      var eottm = oldVariantOfData.graphql.user.edge_owner_to_timeline_media.edges[i];
+      if(eottm != undefined)
+      {
+        totalComments += parseInt(eottm.node.edge_media_to_comment.count);
+        totalLikes += parseInt(eottm.node.edge_liked_by.count);
+       };
+     };
+    var data = 
+    {
+      followerCount : oldVariantOfData.graphql.user.edge_followed_by.count,
+      followCount : oldVariantOfData.graphql.user.edge_follow.count, 
+      mediaCount : oldVariantOfData.graphql.user.edge_owner_to_timeline_media.count,
+      totalComments : totalComments,
+      totalLikes : totalLikes,
+      engagementRatio : (((totalLikes+totalComments))/oldVariantOfData.graphql.user.edge_followed_by.count)/lastPosts,
+      Accountname : username,      
+     }
+      return data
+   } 
+   else 
+   {
+      followerCount : return null;
+      followCount : return null; 
+      mediaCount : return null;
+      totalComments : return null;
+      totalLikes : return null;
+      EngagementRatio : return null;
+      Accountname : username
+     };
+ }
