@@ -1,0 +1,60 @@
+var sheetName = "data";
+var instagramAccountName = [ 'iamkudla', 'kiehlsua', 'garnier_ua' ];
+var lastPosts = 12;
+
+function insertFollowerCount() 
+{
+  for(var index = 0; index < instagramAccountName.length;index++)
+  {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(this.sheetName);
+    accountdata = getInstagramData(this.instagramAccountName[index]);
+    sheet.appendRow([
+    Utilities.formatDate(new Date(), "GMT+02:00", "yyyy-MM-dd  HH-mm"), 
+    accountdata.followerCount, 
+    accountdata.followCount, 
+    accountdata.mediaCount,
+    accountdata.totalLikes, 
+    accountdata.totalComments, 
+    accountdata.EngagementRatio, 
+    accountdata.AccountName]);  
+  };
+};
+ 
+
+
+function getInstagramData(username) 
+{
+  var r = new RegExp('<script type="text\/javascript">' + 
+                   '([^{]+?({.*profile_pic_url.*})[^}]+?)' +
+                   '<\/script>');
+  var url = "https://www.instagram.com/" + username, totalComments = 0, totalLikes = 0;
+  
+  var source = UrlFetchApp.fetch(url,{"muteHttpExcecptions":true}).getContentText();
+   
+  var jsonStr = source.match(r)[2];
+  var data = JSON.parse(jsonStr);
+  console.log('data', data);
+  var oldVariantOfData = data['entry_data']['ProfilePage'][0];
+  console.log('oldVariantOfData', oldVariantOfData);
+   
+  for(var i = 0; i < lastPosts; i++) 
+  {
+    var eottm = oldVariantOfData.graphql.user.edge_owner_to_timeline_media.edges[i];
+    if(eottm != undefined)
+    {
+      totalComments += parseInt(eottm.node.edge_media_to_comment.count);
+      totalLikes += parseInt(eottm.node.edge_liked_by.count);
+    };
+  };
+  
+  return {
+          followerCount : oldVariantOfData.graphql.user.edge_followed_by.count,
+          followCount : oldVariantOfData.graphql.user.edge_follow.count, 
+          mediaCount : oldVariantOfData.graphql.user.edge_owner_to_timeline_media.count,
+          totalComments : totalComments,
+          totalLikes : totalLikes,
+          EngagementRatio : (((totalLikes+totalComments))/oldVariantOfData.graphql.user.edge_followed_by.count)/lastPosts,
+          AccountName : username
+         }  
+}
